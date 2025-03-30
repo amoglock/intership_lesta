@@ -34,7 +34,6 @@ class Repository:
                     for analysis in analyses:
                         if word in analysis.filtered_words:
                             count += 1
-                    print(f"Word: {word}, Count: {count}")
                     counts[word] = count
                 return counts
         except Exception as e:
