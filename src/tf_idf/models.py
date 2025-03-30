@@ -1,6 +1,6 @@
 from typing import List, Tuple
 from sqlmodel import SQLModel
-from pydantic import BaseModel
+
 
 from src.models import Analysis
 
