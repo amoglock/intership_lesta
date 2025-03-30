@@ -4,9 +4,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Form
 from src.tf_idf.utils import check_valid_file_content
-from ..models import Analysis, AnalysisResult
-from .processor import TFIDFProcessor
-from datetime import datetime
+from src.tf_idf.processor import TFIDFProcessor
 import logging
 
 logger = logging.getLogger(__name__)
