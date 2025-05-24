@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Manage FastAPI application lifecycle including database initialization."""
     # Initialization at startup
     try:
         create_db_and_tables()
