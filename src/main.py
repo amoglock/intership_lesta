@@ -1,13 +1,17 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from contextlib import asynccontextmanager
-from src.tf_idf.router import router as tf_idf_router
-from src.database import create_db_and_tables
+from fastapi.staticfiles import StaticFiles
+import uvicorn
+
 from src.core.config import settings
-import logging
+from src.database import create_db_and_tables
+from src.tf_idf.router import router as tf_idf_router
+
 
 # Logging setup
 logging.basicConfig(
