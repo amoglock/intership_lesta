@@ -9,8 +9,6 @@ logger = logging.getLogger(__name__)
 # Create database directory if it doesn't exist
 os.makedirs("data", exist_ok=True)
 
-DATABASE_URL = "sqlite:///./data/tfidf.db"
-
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args={"check_same_thread": False} if settings.DEBUG else {}
