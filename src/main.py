@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from http import HTTPStatus
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -37,7 +38,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="API for text analysis using TF-IDF algorithm",
-    version=settings.API_VERSION,
+    version=settings.APP_VERSION,
     debug=settings.DEBUG,
     lifespan=lifespan
 )
@@ -56,7 +57,7 @@ app.add_middleware(
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.error(f"Validation error: {exc}")
     return JSONResponse(
-        status_code=422,
+        status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
         content={"detail": exc.errors()}
     )
 
@@ -64,7 +65,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def general_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unexpected error: {exc}")
     return JSONResponse(
-        status_code=500,
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         content={"detail": "Internal server error"}
     )
 
@@ -75,5 +76,5 @@ app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 app.include_router(tf_idf_router, tags=["tf-idf"])
 
 if __name__ == "__main__":
-    uvicorn.run("src.main:app", host="0.0.0.0", port=8000)
+    uvicorn.run("src.main:app", host=settings.APP_HOST, port=settings.APP_PORT)
     
