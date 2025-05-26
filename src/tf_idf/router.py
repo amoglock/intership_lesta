@@ -1,11 +1,13 @@
+import logging
 from typing import Annotated, List
+
 from fastapi import APIRouter, Request, File, UploadFile, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Form
-from src.tf_idf.utils import check_valid_file_content
+
+from src.tf_idf.utils import check_valid_file_content, check_file_size
 from src.tf_idf.processor import TFIDFProcessor
-import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -31,18 +33,13 @@ async def process_file(
     request: Request,
     processor: Annotated[TFIDFProcessor, Depends()],
     file: UploadFile = File(...),
-    max_file_size: int = Form(10_000_000, description="Maximum file size in bytes")
 ):
     """Process the uploaded file and return TF-IDF analysis results"""
+    
+    await check_file_size(file)
+    await check_valid_file_content(file.content_type)
+    
     try:
-        # Check file type
-        if not check_valid_file_content(file.content_type):
-            raise HTTPException(
-                status_code=400,
-                detail="Only text files are allowed"
-            )
-        
-        # Read file content
         content = await file.read()
         try:
             text = content.decode('utf-8')
@@ -52,11 +49,9 @@ async def process_file(
                 detail="File cannot be decoded as text"
             )
         
-        # Process text
         results = await processor.process_text(
             filename=file.filename,
             text=text,
-            max_file_size=max_file_size
         )
         
         # Sort results by IDF in descending order and limit to 50 words
