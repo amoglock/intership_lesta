@@ -1,13 +1,13 @@
 import logging
-from typing import Annotated, List
+from typing import Annotated
 
-from fastapi import APIRouter, Request, File, UploadFile, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Form
 
-from src.tf_idf.utils import check_valid_file_content, check_file_size
 from src.tf_idf.processor import TFIDFProcessor
+from src.core.config import settings
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -32,20 +32,19 @@ async def upload_form(request: Request):
 async def process_file(
     request: Request,
     processor: Annotated[TFIDFProcessor, Depends()],
-    file: UploadFile = File(...),
 ):
     """Process the uploaded file and return TF-IDF analysis results"""
     
-    await check_file_size(file)
-    await check_valid_file_content(file.content_type)
-    
+    validation_data = request.state.file_validation
+    file = validation_data["file"]
+
     try:
         content = await file.read()
         try:
             text = content.decode('utf-8')
         except UnicodeDecodeError:
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File cannot be decoded as text"
             )
         
@@ -60,7 +59,7 @@ async def process_file(
             results.results, 
             key=lambda x: x[2],  # index 2 is IDF 
             reverse=True
-        )[:50]
+        )[:settings.TOP_WORDS_COUNT]
         
         return templates.TemplateResponse(
             "upload.html",
