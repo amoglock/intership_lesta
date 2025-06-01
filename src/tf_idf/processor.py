@@ -3,10 +3,12 @@ from typing import List, Tuple, Dict
 import razdel
 import nltk
 import math
-from nltk.corpus import stopwords
-from fastapi import HTTPException
 
-from src.models import Analysis
+from nltk.corpus import stopwords
+from fastapi import HTTPException, status
+from datetime import datetime, UTC
+
+from src.models import Analysis, Metrics
 from src.tf_idf.repository import Repository
 from src.tf_idf.models import ResultModel
 
@@ -85,7 +87,7 @@ class TFIDFProcessor:
             
         return idf_scores
 
-    async def process_text(self, filename: str, text: str, max_file_size: int = 10_000_000) -> ResultModel:
+    async def process_text(self, filename: str, text: str) -> ResultModel:
         """Process text and calculate TF-IDF scores
 
         Args:
@@ -99,11 +101,12 @@ class TFIDFProcessor:
         Raises:
             HTTPException: If text is too large or processing fails
         """
-        if len(text.encode('utf-8')) > max_file_size:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large. Maximum size is {max_file_size/1_000_000}MB"
-            )
+        # Создаем запись метрик
+        start_time = datetime.now(UTC)
+        metrics = Metrics(
+            start_time=start_time,
+            status="pending"
+        )
 
         try:
             # Extract words using razdel
@@ -125,6 +128,10 @@ class TFIDFProcessor:
 
             # Save to database
             analysis = await self.repository.save_result_to_db(analysis, tf)
+            
+            # Сохраняем метрики с ID анализа
+            metrics.analysis_id = analysis.id
+            metrics = await self.repository.save_metrics(metrics)
 
             # Calculate IDF and combine results
             idf = await self.calculate_idf(filtered_words)
@@ -137,11 +144,26 @@ class TFIDFProcessor:
             # Sort by IDF in descending order (from highest to lowest)
             results.sort(key=lambda x: x[2], reverse=True)
             
+            # Refresh metrics
+            end_time = datetime.now(UTC)
+            metrics.end_time = end_time
+            metrics.processing_time = (end_time - start_time).total_seconds()
+            metrics.status = "completed"
+            await self.repository.save_metrics(metrics)
+            
             return ResultModel(analysis=analysis, results=results)
 
         except Exception as e:
+            # Refresh metricx if error
+            if metrics.id:
+                end_time = datetime.now(UTC)
+                metrics.end_time = end_time
+                metrics.processing_time = (end_time - start_time).total_seconds()
+                metrics.status = "failed"
+                await self.repository.save_metrics(metrics)
+            
             raise HTTPException(
-                status_code=500,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to process text: {str(e)}"
             )
  
