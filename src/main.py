@@ -1,17 +1,18 @@
 import logging
 from contextlib import asynccontextmanager
+import uvicorn
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-import uvicorn
 
+from src.api.router import api_router
 from src.core.config import settings
 from src.database import create_db_and_tables
+from src.middleware.middleware import FileValidationMiddleware
 from src.tf_idf.router import router as tf_idf_router
-
 
 # Logging setup
 logging.basicConfig(
@@ -42,6 +43,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.add_middleware(FileValidationMiddleware)
+
 # CORS setup
 app.add_middleware(
     CORSMiddleware,
@@ -50,6 +53,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 
 # Error handlers
 @app.exception_handler(RequestValidationError)
@@ -73,7 +78,8 @@ app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 
 # Connect routers
 app.include_router(tf_idf_router, tags=["tf-idf"])
+app.include_router(api_router)
 
 if __name__ == "__main__":
-    uvicorn.run("src.main:app", host=settings.APP_HOST, port=settings.APP_PORT)
+    uvicorn.run("src.main:app", host=settings.APP_HOST, port=settings.APP_PORT, reload=True)
     
