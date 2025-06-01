@@ -17,6 +17,8 @@ class Analysis(SQLModel, table=True):
     
     # Relationship with results
     results: List["AnalysisResult"] = Relationship(back_populates="analysis", cascade_delete="all, delete-orphan")
+    # Relationship with metrics
+    metrics: List["Metrics"] = Relationship(back_populates="analysis", cascade_delete="all, delete-orphan")
 
 class AnalysisResult(SQLModel, table=True):
     __tablename__ = "analysis_results"
@@ -28,3 +30,18 @@ class AnalysisResult(SQLModel, table=True):
     
     # Relationship with analysis
     analysis: Optional["Analysis"] = Relationship(back_populates="results")
+
+class Metrics(SQLModel, table=True):
+    __tablename__ = "metrics"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    analysis_id: int = Field(foreign_key="analyses.id")
+    start_time: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    end_time: Optional[datetime] = Field(default=None)
+    processing_time: Optional[float] = Field(default=None)
+    status: str = Field(default="pending")
+    
+    # Relationship with analysis
+    analysis: Optional["Analysis"] = Relationship(back_populates="metrics")
+
+        
