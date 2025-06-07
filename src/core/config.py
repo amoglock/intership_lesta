@@ -15,18 +15,19 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # Database
-    DATABASE_URL: str = "sqlite:///./data/tf_idf.db"
+    DATABASE_URL: str
     
     # CORS
     CORS_ORIGINS: List[str] = ["*"]
     
     # Paths
-    STATIC_DIR: str = "src/static"
+    STATIC_DIR: str = "src/frontend/static"
     DATA_DIR: str = "data"
 
     # App settings
     MAX_FILE_SIZE: int = 1_048_576
     ALLOWED_FILE_TYPES: List[str] = ["text/plain"]
+    ALLOWED_EXTENSIONS: List[str]  = [".txt"]
     TOP_WORDS_COUNT: int = 50
     LOG_LEVEL: str = "INFO"
     
