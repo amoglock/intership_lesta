@@ -1,169 +1,103 @@
-# from collections import Counter
-# from typing import List, Tuple, Dict
-# import razdel
-# import nltk
-# import math
+import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
-# from nltk.corpus import stopwords
-# from fastapi import HTTPException, status
-# from datetime import datetime, UTC
+from src.tf_idf.models import ResultModel
+from src.tf_idf.repository import Repository
 
-# from src.models import Analysis, AnalysisMetrics
-# from src.tf_idf.models import ResultModel
-# from src.tf_idf.repository import Repository
 
-# # NLTK initialization
-# try:
-#     nltk.data.find('corpora/stopwords')
-# except LookupError:
-#     nltk.download('stopwords')
-# stop_words = set(stopwords.words('russian'))
+class TFIDFProcessor:
+    def __init__(self):
+        self.repository = Repository()
+        self.count_vectorizer = CountVectorizer()
+        self.tfidf_vectorizer = TfidfVectorizer()
 
-# class TFIDFProcessor:
-#     def __init__(self):
-#         self.repository = Repository()
+        self.token_pattern = r"(?u)\b\w{2,}\b"
 
-#     def tokenize(self, text: str) -> List[str]:
-#         """Tokenize text using razdel and remove punctuation, digits, and whitespace"""
-#         # Tokenize using razdel
-#         tokens = [token.text for token in razdel.tokenize(text.lower())]
-        
-#         # Remove punctuation, digits, whitespace, and empty tokens
-#         return [
-#             token for token in tokens 
-#             if token and 
-#             not any(char in '.,!?;:()[]{}«»"\'—' for char in token) and
-#             not any(char.isdigit() for char in token) and
-#             not token.isspace() and
-#             not token.isspace() and
-#             len(token.strip()) > 0 and
-#             not token.startswith('⁠')  # Remove special empty character
-#         ]
+    async def document_statistics(self, current_doc_content, collection_texts):
+        """ """
 
-#     def calculate_tf(self, words: List[str]) -> List[Tuple[str, float]]:
-#         """Calculate Term Frequency for the document words
+        try:
+            doc_index = collection_texts.index(current_doc_content)
+        except ValueError:
+            raise ValueError("Документ не найден в коллекции после предобработки")
 
-#         Args:
-#             words (List[str]): List of words from the document
+        count_vec, tf_current = await self.calculate_document_tf(doc_index, collection_texts)
+        idf = await self.calculate_idf(collection_texts=collection_texts)
 
-#         Returns:
-#             List[Tuple[str, float]]: List of tuples (word, tf rating)
-#         """
-#         if not words:
-#             return []
-            
-#         total_words = len(words)
-#         filtered_words = [word for word in words if word not in stop_words]
-        
-#         # Count word frequencies
-#         word_counts = Counter(filtered_words)
-        
-#         # Calculate TF
-#         tf = {word: count/total_words for word, count in word_counts.items()}
-#         return [(word, score) for word, score in tf.items()]
+        # Получаем все слова
+        feature_names = count_vec.get_feature_names_out()
 
-#     async def calculate_idf(self, document_words: List[str]) -> Dict[str, float]:
-#         """Calculate Inverse Document Frequency for words
+        # Собираем результаты
+        result = []
+        for word, tf in zip(feature_names, tf_current):
+            if tf > 0:  # Только слова из документа
+                word_idx = np.where(feature_names == word)[0][0]
+                word_idf = idf[word_idx]
+                result.append(
+                    {
+                        "word": word,
+                        "tf": float(tf),
+                        "idf": float(word_idf),
+                        "tfidf": float(tf * word_idf),
+                    }
+                )
 
-#         Args:
-#             document_words (List[str]): List of words from the current document
+        # Сортировка по убыванию TF-IDF
+        return {"tfidf": sorted(result, key=lambda x: x["tfidf"], reverse=True)}
+    
+    async def collection_statictics(self, collection_texts):
+        """ """
+        combined_text = ' '.join(collection_texts)
+        count_vec, tf_combined = await self.calculate_collection_tf(combined_text)
+        idf = await self.calculate_idf(collection_texts=collection_texts)
 
-#         Returns:
-#             Dict[str, float]: Dictionary of word -> idf score
-#         """
-#         if not document_words:
-#             return {}
-            
-#         # Get document count for each word
-#         word_doc_counts = await self.repository.get_word_document_counts(set(document_words))
-#         total_docs = await self.repository.get_total_documents()
-        
-#         # Calculate IDF using the classic formula with smoothing
-#         idf_scores = {}
-#         for word, count in word_doc_counts.items():
-#             # Use formula: log((total_documents + 1) / (document_count_with_word + 1))
-#             # Add 1 to both values for smoothing
-#             idf_scores[word] = math.log((total_docs + 1) / (count + 1))
-            
-#         return idf_scores
+        # Получаем все слова
+        feature_names = count_vec.get_feature_names_out()
 
-#     async def process_text(self, filename: str, text: str) -> ResultModel:
-#         """Process text and calculate TF-IDF scores
+        # Собираем результаты
+        result = []
+        for word, tf in zip(feature_names, tf_combined):
+            if tf > 0:  # Только слова из документа
+                word_idx = np.where(feature_names == word)[0][0]
+                word_idf = idf[word_idx]
+                result.append(
+                    {
+                        "word": word,
+                        "tf": float(tf),
+                        "idf": float(word_idf),
+                        "tfidf": float(tf * word_idf),
+                    }
+                )
 
-#         Args:
-#             filename (str): Name of the file
-#             text (str): Text content
-#             max_file_size (int, optional): Maximum file size in bytes. Defaults to 10MB.
+        # Сортировка по убыванию TF-IDF
+        return {"tfidf": sorted(result, key=lambda x: x["tfidf"], reverse=True)}
 
-#         Returns:
-#             ResultModel: Processing results
 
-#         Raises:
-#             HTTPException: If text is too large or processing fails
-#         """
-#         # Создаем запись метрик
-#         start_time = datetime.now(UTC)
-#         metrics = AnalysisMetrics(
-#             start_time=start_time,
-#             status="pending"
-#         )
+    
+    async def calculate_document_tf(self, doc_index, collection_texts: str, ):
+        """ """
+        # TF (CountVectorizer)
+        count_vec = CountVectorizer(token_pattern=self.token_pattern)
+        tf_matrix = count_vec.fit_transform(collection_texts)
+        tf_current = tf_matrix[doc_index].toarray()[0]
+        return count_vec, tf_current
+    
+    async def calculate_collection_tf(self, collection_texts):
+        """ """
+        count_vec = CountVectorizer(token_pattern=self.token_pattern)
+        tf_matrix = count_vec.fit_transform([collection_texts])
+        tf_combined = tf_matrix.toarray()[0]
+        return count_vec, tf_combined
 
-#         try:
-#             # Extract words using razdel
-#             document_words = self.tokenize(text)
-#             total_words = len(document_words)
-#             filtered_words = [word for word in document_words if word not in stop_words]
-
-#             # Calculate TF
-#             tf = self.calculate_tf(document_words)
-
-#             # Create analysis record
-#             analysis = Analysis(
-#                 filename=filename,
-#                 content=text,  # Add text content to the content field
-#                 total_words=total_words,
-#                 original_text=text,
-#                 filtered_words=filtered_words,
-#             )
-
-#             # Save to database
-#             analysis = await self.repository.save_result_to_db(analysis, tf)
-            
-#             # Сохраняем метрики с ID анализа
-#             metrics.analysis_id = analysis.id
-#             metrics = await self.repository.save_metrics(metrics)
-
-#             # Calculate IDF and combine results
-#             idf = await self.calculate_idf(filtered_words)
-#             results = [
-#                 (word, tf_rating, idf[word])
-#                 for word, tf_rating in tf
-#                 if word in idf
-#             ]
-
-#             # Sort by IDF in descending order (from highest to lowest)
-#             results.sort(key=lambda x: x[2], reverse=True)
-            
-#             # Refresh metrics
-#             end_time = datetime.now(UTC)
-#             metrics.end_time = end_time
-#             metrics.processing_time = (end_time - start_time).total_seconds()
-#             metrics.status = "completed"
-#             await self.repository.save_metrics(metrics)
-            
-#             return ResultModel(analysis=analysis, results=results)
-
-#         except Exception as e:
-#             # Refresh metrics if error
-#             if metrics.id:
-#                 end_time = datetime.now(UTC)
-#                 metrics.end_time = end_time
-#                 metrics.processing_time = (end_time - start_time).total_seconds()
-#                 metrics.status = "failed"
-#                 await self.repository.save_metrics(metrics)
-            
-#             raise HTTPException(
-#                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#                 detail=f"Failed to process text: {str(e)}"
-#             )
- 
+    async def calculate_idf(self, collection_texts):
+        """ """
+        # IDF (TfidfVectorizer)
+        tfidf_vec = TfidfVectorizer(
+            token_pattern=self.token_pattern,
+            norm=None,  # Отключаем нормализацию для чистых значений
+            use_idf=True,
+            smooth_idf=False,
+        )
+        tfidf_vec.fit(collection_texts)
+        idf = tfidf_vec.idf_
+        return idf
