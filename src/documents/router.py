@@ -28,6 +28,38 @@ documents_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
+@documents_router.get("/")
+async def documents(
+    file_service: Annotated[DocumentsService, Depends()],
+) -> list[DocumentInDB]:
+    """ """
+    return await file_service.get_documents()
+
+
+@documents_router.get(
+    "/{document_id}",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorMessage,
+            "description": "The file was not found",
+        },
+    },
+    response_model=DocumentContent,
+)
+async def document_by_id(
+    document_id: Annotated[int, Path(title="The ID of the document to get")],
+    file_service: Annotated[DocumentsService, Depends()],
+) -> DocumentContent:
+    """ """
+    try:
+        return await file_service.get_document_with_content(document_id=document_id)
+    except (FileNotFoundError, NoResultFound) as e:
+        logger.error(f"File not found: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
 
 @documents_router.post(
     "/upload",
@@ -73,38 +105,6 @@ async def upload_file(
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_message
-        )
-
-@documents_router.get("/")
-async def documents(
-    file_service: Annotated[DocumentsService, Depends()],
-) -> list[DocumentInDB]:
-    """ """
-    return await file_service.get_documents()
-
-
-@documents_router.get(
-    "/{document_id}",
-    responses={
-        status.HTTP_404_NOT_FOUND: {
-            "model": ErrorMessage,
-            "description": "The file was not found",
-        },
-    },
-    response_model=DocumentContent,
-)
-async def document_by_id(
-    document_id: Annotated[int, Path(title="The ID of the document to get")],
-    file_service: Annotated[DocumentsService, Depends()],
-) -> DocumentContent:
-    """ """
-    try:
-        return await file_service.get_document_with_content(document_id=document_id)
-    except (FileNotFoundError, NoResultFound) as e:
-        logger.error(f"File not found: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found",
         )
 
 
