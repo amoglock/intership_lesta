@@ -1,13 +1,10 @@
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
-from src.tf_idf.models import ResultModel
-from src.tf_idf.repository import Repository
 
 
 class TFIDFProcessor:
     def __init__(self):
-        self.repository = Repository()
         self.count_vectorizer = CountVectorizer()
         self.tfidf_vectorizer = TfidfVectorizer()
 
