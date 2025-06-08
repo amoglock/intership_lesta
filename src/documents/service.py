@@ -3,18 +3,24 @@ import logging
 import os
 
 
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
+from src.collections.repository import CollectionsRepository
 from src.core.config import settings
 from src.documents.repository import DocumentsRepository
 from src.documents.schemas import DocumentContent, DocumentInDB
 from src.models import Document
+from src.tf_idf.processor import TFIDFProcessor
 
 
 class DocumentsService:
     def __init__(self):
-        self.repository = DocumentsRepository()
         self.logger = logging.getLogger(__name__)
+        self.repository = DocumentsRepository()
+        self.processor = TFIDFProcessor()
+        self.collections = CollectionsRepository()
+        
 
     async def delete_document(self, document_id) -> None:
         """ """
@@ -34,6 +40,22 @@ class DocumentsService:
         """ """
         documents = await self.repository.get_one_or_all_documents()
         return documents
+    
+    async def get_document_statistics(self, collection_id:int, document_id: int):
+        """ """
+        collection_texts = []
+        collection = await self.collections.get_collection_by_id(collection_id=collection_id)
+        document = await self.get_document(document_id=document_id)
+        if document in collection.documents:
+            for doc in collection.documents:
+                content = await self.get_file_content(doc.file_path)
+                collection_texts.append(content)
+        current_doc_content = await self.get_file_content(document.file_path)
+ 
+
+        return await self.processor.document_statistics(current_doc_content, collection_texts)
+
+
     
     async def get_document_with_content(self, document_id: int) -> DocumentContent:
         """ """
