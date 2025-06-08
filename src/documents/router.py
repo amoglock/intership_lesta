@@ -60,10 +60,19 @@ async def document_by_id(
             detail="File not found",
         )
 
+@documents_router.get(
+        "/{document_id}/statistics",
+        )
+async def document_statistics(
+    document_id: Annotated[int, Path(title="The ID of the document to get statistics")],
+    collection_id: int,
+    file_service: Annotated[DocumentsService, Depends()],
+):
+    return await file_service.get_document_statistics(collection_id=collection_id, document_id=document_id)
 
 @documents_router.post(
     "/upload",
-    responses={
+    responses={ 
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorMessage,
             "description": "The file was checked unsuccessfully",
