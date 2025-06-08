@@ -52,8 +52,13 @@ async def collection_by_id(
 
 
 @collections_router.get("/{collection_id}/statistics")
-async def collection_satistics():
-    pass
+async def collection_satistics(
+    collection_id: Annotated[int, Path(title="The ID of the collection to get statistics")],
+    service: Annotated[CollectionsService, Depends()]
+):
+    """ """
+    return await service.get_collection_statistics(collection_id=collection_id)
+
 
 
 @collections_router.post("/{collection_id}/{document_id}")
