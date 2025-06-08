@@ -5,6 +5,13 @@ from sqlmodel import SQLModel, Field, Relationship
 
 
 class CollectionDocumentLink(SQLModel, table=True):
+    """Link table for many-to-many relationship between Collection and Document.
+    
+    Attributes:
+        collection_id: Foreign key to collections table
+        document_id: Foreign key to documents table
+        added_at: Timestamp when document was added to collection
+    """
     __tablename__ = "collection_documents"
 
     collection_id: int = Field(foreign_key="collections.id", primary_key=True)
@@ -13,6 +20,17 @@ class CollectionDocumentLink(SQLModel, table=True):
 
 
 class Document(SQLModel, table=True):
+    """Document model representing uploaded text files.
+    
+    Attributes:
+        id: Primary key
+        filename: Original filename
+        unique_filename: Unique filename with timestamp
+        file_path: Path to stored file
+        created_at: Timestamp when document was created
+        reference_count: Number of collections referencing this document
+        collections: List of collections containing this document
+    """
     __tablename__ = "documents"
 
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -29,6 +47,16 @@ class Document(SQLModel, table=True):
 
 
 class Collection(SQLModel, table=True):
+    """Collection model representing groups of documents.
+    
+    Attributes:
+        id: Primary key
+        name: Collection name
+        description: Optional collection description
+        created_at: Timestamp when collection was created
+        updated_at: Timestamp when collection was last updated
+        documents: List of documents in this collection
+    """
     __tablename__ = "collections"
 
     id: Optional[int] = Field(default=None, primary_key=True)
