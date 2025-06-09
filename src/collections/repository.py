@@ -32,18 +32,19 @@ class CollectionsRepository:
             session.add(collection)
             session.commit()
 
-    async def create_collection(self) -> Collection:
+    async def create_collection(self, collection_name: str) -> Collection:
         """Create a new collection.
 
         Returns:
             Collection: Created collection
         """
         with Session(self.engine) as session:
-            collection = Collection(name="My collection")
+            collection = Collection(name=collection_name)
             session.add(collection)
             session.commit()
             session.refresh(collection)
-            return collection
+            collection.documents = []
+        return collection
 
     async def remove_document_from_collection(
         self, collection: Collection, document: Document
