@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 import logging
 import os
 
@@ -10,7 +10,8 @@ from src.collections.repository import CollectionsRepository
 from src.core.config import settings
 from src.documents.repository import DocumentsRepository
 from src.documents.schemas import DocumentContent, DocumentInDB
-from src.models import Document
+from src.metrics.repository import MetricsRepository
+from src.models import Document, Metrics
 from src.tf_idf.processor import TFIDFProcessor
 
 
@@ -20,6 +21,7 @@ class DocumentsService:
         self.repository = DocumentsRepository()
         self.processor = TFIDFProcessor()
         self.collections = CollectionsRepository()
+        self.metrics = MetricsRepository()
         
 
     async def delete_document(self, document_id) -> None:
@@ -43,6 +45,8 @@ class DocumentsService:
     
     async def get_document_statistics(self, collection_id:int, document_id: int):
         """ """
+
+        metrics = Metrics()
         collection_texts = []
         collection = await self.collections.get_collection_by_id(collection_id=collection_id)
         document = await self.get_document(document_id=document_id)
@@ -53,7 +57,14 @@ class DocumentsService:
         current_doc_content = await self.get_file_content(document.file_path)
  
 
-        return await self.processor.document_statistics(current_doc_content, collection_texts)
+        statistics = await self.processor.document_statistics(current_doc_content, collection_texts)
+
+        metrics.end_time = datetime.now(UTC)
+        metrics.processing_time = (metrics.end_time - metrics.start_time).total_seconds()
+        metrics.status = "completed"
+        await self.metrics.save_metrics(metrics)
+
+        return statistics
 
 
     
