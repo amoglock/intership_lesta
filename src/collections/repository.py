@@ -1,8 +1,11 @@
+from typing import List
+
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
-from src.collections.schemas import CollectionResponse, DocumentInCollection
+
+from src.collections.schemas import CollectionResponse
 from src.database import engine
-from src.models import Collection, Document, CollectionDocumentLink
+from src.models import Collection, Document
 
 
 class CollectionsRepository:
@@ -77,7 +80,7 @@ class CollectionsRepository:
             collection = session.exec(template).one()
         return collection
 
-    async def get_all_collections(self) -> list[CollectionResponse]:
+    async def get_all_collections(self) -> List[CollectionResponse]:
         """Get all collections with their documents.
 
         Returns:
