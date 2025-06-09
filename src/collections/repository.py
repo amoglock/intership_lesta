@@ -7,7 +7,7 @@ from src.models import Collection, Document, CollectionDocumentLink
 
 class CollectionsRepository:
     """Repository for managing collections and their documents.
-    
+
     This repository handles all database operations related to collections,
     including CRUD operations and managing document-collection relationships.
     """
@@ -19,7 +19,7 @@ class CollectionsRepository:
         self, collection: Collection, document: Document
     ) -> None:
         """Add a document to a collection.
-        
+
         Args:
             collection: Collection to add document to
             document: Document to add to collection
@@ -31,7 +31,7 @@ class CollectionsRepository:
 
     async def create_collection(self) -> Collection:
         """Create a new collection.
-        
+
         Returns:
             Collection: Created collection
         """
@@ -41,10 +41,12 @@ class CollectionsRepository:
             session.commit()
             session.refresh(collection)
             return collection
-        
-    async def remove_document_from_collection(self, collection: Collection, document: Document):
+
+    async def remove_document_from_collection(
+        self, collection: Collection, document: Document
+    ) -> None:
         """Remove a document from a collection.
-        
+
         Args:
             collection: Collection to remove document from
             document: Document to remove from collection
@@ -56,13 +58,13 @@ class CollectionsRepository:
 
     async def get_collection_by_id(self, collection_id: int) -> Collection:
         """Get a collection by its ID.
-        
+
         Args:
             collection_id: ID of the collection to get
-            
+
         Returns:
             Collection: Collection with its documents
-            
+
         Raises:
             NoResultFound: If collection with given ID doesn't exist
         """
@@ -73,11 +75,11 @@ class CollectionsRepository:
                 .options(selectinload(Collection.documents))
             )
             collection = session.exec(template).one()
-            return collection
+        return collection
 
     async def get_all_collections(self) -> list[CollectionResponse]:
         """Get all collections with their documents.
-        
+
         Returns:
             list[CollectionResponse]: List of all collections with their documents
         """
