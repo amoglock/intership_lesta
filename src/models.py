@@ -70,6 +70,16 @@ class Collection(SQLModel, table=True):
         back_populates="collections", link_model=CollectionDocumentLink
     )
 
+class Metrics(SQLModel, table=True):
+    """"""
+    __tablename__ = "metrics"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    start_time: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    end_time: Optional[datetime] = Field(default=None)
+    processing_time: Optional[float] = Field(default=None)
+    status: str = Field(default="pending")    
+
 
 # class User(SQLModel, table=True):
 #     __tablename__ = "users"
