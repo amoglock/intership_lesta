@@ -13,6 +13,7 @@ from src.documents.router import documents_router
 from src.collections.router import collections_router
 from src.frontend.router import frontend_router
 from src.metrics.router import metrics_router
+from src.users.router import users_router
 
 # Logging setup
 logging.basicConfig(
@@ -61,6 +62,7 @@ app.include_router(documents_router)
 app.include_router(collections_router)
 app.include_router(frontend_router)
 app.include_router(metrics_router)
+app.include_router(users_router)
 
 if __name__ == "__main__":
     uvicorn.run("src.main:app", host=settings.APP_HOST, port=settings.APP_PORT, reload=True)
