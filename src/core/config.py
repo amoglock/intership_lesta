@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: List[str]  = [".txt"]
     TOP_WORDS_COUNT: int = 50
     LOG_LEVEL: str = "INFO"
+
+    # Users
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
     
     class Config:
         env_file = str(Path(__file__).parent.parent.parent / ".env")
