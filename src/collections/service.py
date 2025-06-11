@@ -36,13 +36,13 @@ class CollectionsService:
         document = await self.documents_repository.get_one_or_all_documents(document_id)
         await self.repository.add_document_to_collection(collection, document)
 
-    async def create_collection(self) -> CollectionResponse:
+    async def create_collection(self, collection_name: str) -> CollectionResponse:
         """Create a new collection.
         
         Returns:
             CollectionResponse: Created collection
         """
-        return await self.repository.create_collection()
+        return await self.repository.create_collection(collection_name)
 
     async def collection(self, collection_id: int) -> list[DocumentInCollection]:
         """Get all documents in a collection.
