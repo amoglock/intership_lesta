@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timezone
 import logging
 import os
+from typing import List
 
 
 from fastapi import HTTPException, UploadFile
@@ -38,7 +39,7 @@ class DocumentsService:
         return document
         
 
-    async def get_documents(self) -> list[DocumentInDB]:
+    async def get_documents(self) -> List[DocumentInDB]:
         """ """
         documents = await self.repository.get_one_or_all_documents()
         return documents
@@ -75,29 +76,6 @@ class DocumentsService:
         document_dict = document.model_dump()
         return DocumentContent(**document_dict, content=content)
 
-    async def file_validation(self, file: UploadFile) -> bool:
-        """Validates file size, content type and file extension.
-
-        Args:
-            file (UploadFile): Uploaded file by form
-
-        Returns:
-            bool: True if validation is successful, otherwise False
-
-        Note:
-            Validates against:
-            - settings.MAX_FILE_SIZE: Maximum allowed file size
-            - settings.ALLOWED_FILE_TYPES: List of allowed MIME types
-            - settings.ALLOWED_EXTENSIONS: List of allowed file extensions
-        """
-        ext = os.path.splitext(file.filename)[1].lower()
-        if ext not in settings.ALLOWED_EXTENSIONS:
-            return False
-
-        return (
-            file.size <= settings.MAX_FILE_SIZE
-            and file.content_type in settings.ALLOWED_FILE_TYPES
-        )
 
     async def get_file_content(self, file_path: str) -> str:
         """ """
