@@ -41,7 +41,7 @@ class DocumentsRepository:
         try:
             with Session(self.engine) as session:
                 if document_id:
-                    statement = select(Document).where(Document.id == document_id)
+                    statement = select(Document).where(Document.id == 0)
                     document = session.exec(statement).one()
                     return document
 
