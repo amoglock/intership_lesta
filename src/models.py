@@ -4,6 +4,29 @@ from typing import List, Optional
 from sqlmodel import SQLModel, Field, Relationship
 
 
+class User(SQLModel, table=True):
+    """User model representing application users.
+    
+    Attributes:
+        id: Primary key
+        username: Unique username
+        hashed_password: Hashed password
+        created_at: Timestamp when user was created
+        is_active: Whether the user is active
+    """
+    __tablename__ = "users"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str = Field(unique=True, index=True)
+    hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = Field(default=True)
+    
+    # Relationships
+    collections: list["Collection"] = Relationship(back_populates="owner")
+    documents: list["Document"] = Relationship(back_populates="owner")
+
+
 class CollectionDocumentLink(SQLModel, table=True):
     """Link table for many-to-many relationship between Collection and Document.
     
@@ -39,11 +62,13 @@ class Document(SQLModel, table=True):
     file_path: str = Field(nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     reference_count: int = Field(default=1)
+    owner_id: int = Field(foreign_key="users.id")
 
     # Relationships
     collections: List["Collection"] = Relationship(
         back_populates="documents", link_model=CollectionDocumentLink
     )
+    owner: "User" = Relationship(back_populates="documents")
 
 
 class Collection(SQLModel, table=True):
@@ -64,114 +89,29 @@ class Collection(SQLModel, table=True):
     description: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    owner_id: int = Field(foreign_key="users.id")
 
     # Relationships
     documents: List[Document] = Relationship(
         back_populates="collections", link_model=CollectionDocumentLink
     )
+    owner: "User" = Relationship(back_populates="collections")
+
 
 class Metrics(SQLModel, table=True):
-    """"""
+    """Metrics model for tracking processing times and status.
+    
+    Attributes:
+        id: Primary key
+        start_time: When the process started
+        end_time: When the process ended
+        processing_time: Total processing time in seconds
+        status: Current status of the process
+    """
     __tablename__ = "metrics"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     start_time: datetime = Field(default_factory=lambda: datetime.now(UTC))
     end_time: Optional[datetime] = Field(default=None)
     processing_time: Optional[float] = Field(default=None)
-    status: str = Field(default="pending")    
-
-
-# class User(SQLModel, table=True):
-#     __tablename__ = "users"
-
-#     id: Optional[int] = Field(default=None, primary_key=True)
-#     username: str = Field(nullable=False, unique=True)
-#     password_hash: str = Field(nullable=False)
-#     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-#     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-#     # Связи
-#     documents: List["Document"] = Relationship(back_populates="user")
-#     collections: List["Collection"] = Relationship(back_populates="user")
-
-
-# class DocumentStatistics(SQLModel, table=True):
-#     __tablename__ = "document_statistics"
-
-#     id: Optional[int] = Field(default=None, primary_key=True)
-#     document_id: int = Field(foreign_key="documents.id")
-#     collection_id: int = Field(foreign_key="collections.id")
-#     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-#     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-#     # Связи
-#     document: "Document" = Relationship(back_populates="statistics")
-#     collection: "Collection" = Relationship(back_populates="statistics")
-#     word_statistics: List["WordStatistics"] = Relationship(back_populates="document_statistics")
-
-
-# class WordStatistics(SQLModel, table=True):
-#     __tablename__ = "word_statistics"
-
-#     id: Optional[int] = Field(default=None, primary_key=True)
-#     document_statistics_id: int = Field(foreign_key="document_statistics.id")
-#     word: str = Field(nullable=False)
-#     tf: float = Field(nullable=False)  # Term Frequency
-#     idf: float = Field(nullable=False)  # Inverse Document Frequency
-
-#     # Связи
-#     document_statistics: "DocumentStatistics" = Relationship(back_populates="word_statistics")
-
-
-# class GlobalMetrics(SQLModel, table=True):
-#     """Глобальные метрики приложения"""
-#     __tablename__ = "global_metrics"
-
-#     id: Optional[int] = Field(default=None, primary_key=True)
-#     total_requests: int = Field(default=0)
-#     total_analyses: int = Field(default=0)
-#     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-#     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-# class AnalysisMetrics(SQLModel, table=True):
-#     """Метрики для каждого анализа"""
-#     __tablename__ = "analysis_metrics"
-
-#     id: Optional[int] = Field(default=None, primary_key=True)
-#     analysis_id: Optional[int] = Field(default=None, foreign_key="analyses.id")
-#     start_time: datetime = Field(default_factory=lambda: datetime.now(UTC))
-#     end_time: Optional[datetime] = Field(default=None)
-#     processing_time: Optional[float] = Field(default=None)
-#     status: str = Field(default="pending")
-
-#     # Relationship with analysis
-#     analysis: Optional["Analysis"] = Relationship(back_populates="metrics")
-
-# class Analysis(SQLModel, table=True):
-#     """Анализ текста"""
-#     __tablename__ = "analyses"
-
-#     id: Optional[int] = Field(default=None, primary_key=True)
-#     filename: str = Field(nullable=False)
-#     content: str = Field(nullable=False)
-#     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-#     total_words: int = Field(default=0)
-#     original_text: str = Field(default="")
-#     filtered_words: List[str] = Field(default_factory=list, sa_type=JSON)
-
-#     # Relationship with results
-#     results: List["AnalysisResult"] = Relationship(back_populates="analysis", cascade_delete="all, delete-orphan")
-#     # Relationship with metrics
-#     metrics: Optional[AnalysisMetrics] = Relationship(back_populates="analysis")
-
-# class AnalysisResult(SQLModel, table=True):
-#     """Результат анализа для одного слова"""
-#     __tablename__ = "analysis_results"
-
-#     id: Optional[int] = Field(default=None, primary_key=True)
-#     analysis_id: int = Field(foreign_key="analyses.id")
-#     word: str = Field(nullable=False)
-#     tf: float = Field(nullable=False)
-
-#     # Relationship with analysis
-#     analysis: Analysis = Relationship(back_populates="results")
+    status: str = Field(default="pending")     
