@@ -1,10 +1,7 @@
 from datetime import datetime, UTC
 from typing import List, Optional
 
-from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import SQLModel, Field, Relationship
-
-from src.tf_idf.schemas import WordStatistics
 
 
 class User(SQLModel, table=True):
@@ -64,7 +61,7 @@ class Document(SQLModel, table=True):
     filename: str = Field(nullable=False)
     unique_filename: str = Field(nullable=False, unique=True)
     file_path: str = Field(nullable=False)
-    content: List[WordStatistics] = Field(nullable=True, sa_type=JSON)
+    content: str = Field(nullable=True)
     content_length: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     owner_id: int = Field(foreign_key="users.id")
@@ -99,7 +96,6 @@ class Collection(SQLModel, table=True):
     name: str = Field(nullable=False)
     description: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     owner_id: int = Field(foreign_key="users.id")
 
     # Relationships
