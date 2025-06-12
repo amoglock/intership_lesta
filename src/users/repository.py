@@ -35,10 +35,11 @@ class UsersRepository:
         """Physically delete user and all related data.
         
         This will:
-        1. Delete all user's documents from storage
-        2. Delete all user's collections
-        3. Delete all user's documents from database
-        4. Delete the user record
+        1. Get all user's documents and collect unique file paths
+        2. Delete all user's files from storage
+        3. Delete all user's collections
+        4. Delete all user's documents from database
+        5. Delete the user record
         
         Args:
             user (User): User to delete
@@ -49,14 +50,20 @@ class UsersRepository:
                 select(Document).where(Document.owner_id == user.id)
             ).all()
             
-            # Delete files from storage
+            # Collect unique file paths
+            unique_file_paths = set()
             for doc in documents:
+                if doc.file_path:
+                    unique_file_paths.add(doc.file_path)
+            
+            # Delete files from storage
+            for file_path in unique_file_paths:
                 try:
-                    file_path = os.path.join(settings.UPLOAD_DIR, doc.unique_filename)
                     if os.path.exists(file_path):
                         os.remove(file_path)
+                        self.logger.info(f"Deleted file: {file_path}")
                 except Exception as e:
-                    self.logger.error(f"Error deleting file {doc.unique_filename}: {e}")
+                    self.logger.error(f"Error deleting file {file_path}: {e}")
             
             # Delete all user's collections
             collections = session.exec(
@@ -64,13 +71,17 @@ class UsersRepository:
             ).all()
             for collection in collections:
                 session.delete(collection)
+                self.logger.info(f"Deleted collection: {collection.id}")
             
             # Delete all user's documents
             for doc in documents:
                 session.delete(doc)
+                self.logger.info(f"Deleted document: {doc.filename}")
             
             # Finally delete the user
             session.delete(user)
+            self.logger.info(f"Deleted user: {user.username}")
+            
             session.commit()
         
 
