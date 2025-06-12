@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 import logging
 import os
 from pathlib import Path
@@ -15,6 +15,7 @@ from src.models import Document, Metrics
 from src.tf_idf.processor import TFIDFProcessor
 from src.tf_idf.schemas import DocumentStatistics
 from src.users.schemas import UserResponse
+from src.models import Metrics
 
 
 class DocumentsService:
@@ -116,40 +117,65 @@ class DocumentsService:
             HTTPException: If document is not in the specified collection
             NoResultFound: If document or collection doesn't exist
         """
-        metrics = Metrics()
-
-        # Get document and collection
-        collection = await self.collections.get_collection_by_id(
-            collection_id=collection_id,
-            user_id=user.id,
+        start_time = datetime.now(UTC)
+        metrics = Metrics(
+            document_id=document_id,
+            start_time=start_time,
+            status="processing"
         )
-        document = await self.get_document(document_id=document_id, user_id=user.id)
 
-        # Check if document is in collection
-        if document not in collection.documents:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Document is not in collection",
+        try:
+            # Get document and collection
+            collection = await self.collections.get_collection_by_id(
+                collection_id=collection_id,
+                user_id=user.id,
             )
+            document = await self.get_document(document_id=document_id, user_id=user.id)
 
-        collection_texts = []
-        for doc in collection.documents:
-            collection_texts.append(
-                doc.content
-                if doc.content
-                else await self.get_file_content(doc.file_path)
+            # Check if document is in collection
+            if document not in collection.documents:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Document is not in collection",
+                )
+
+            collection_texts = []
+            for doc in collection.documents:
+                collection_texts.append(
+                    doc.content
+                    if doc.content
+                    else await self.get_file_content(doc.file_path)
+                )
+
+            statistics = await self.processor.document_statistics(
+                document_content=document.content, collection_content=collection_texts
             )
-
-        statistics = await self.processor.document_statistics(
-            document_content=document.content, collection_content=collection_texts
-        )
-        return DocumentStatistics(
-            **{
-                "document": document_id,
-                "collection": collection_id,
-                "tf_idf": statistics,
-            }
-        )
+            
+            end_time = datetime.now(UTC)
+            processing_time = (end_time - start_time).total_seconds()
+            
+            metrics.end_time = end_time
+            metrics.processing_time = processing_time
+            metrics.status = "completed"
+            await self.metrics.save_metrics(metrics)
+            
+            return DocumentStatistics(
+                **{
+                    "document": document_id,
+                    "collection": collection_id,
+                    "tf_idf": statistics,
+                }
+            )
+        except Exception as e:
+            end_time = datetime.now(UTC)
+            processing_time = (end_time - start_time).total_seconds()
+            
+            metrics.end_time = end_time
+            metrics.processing_time = processing_time
+            metrics.status = "failed"
+            metrics.error_message = str(e)
+            await self.metrics.save_metrics(metrics)
+            raise
 
     async def get_document_with_content(
         self, document_id: int, user: UserResponse
