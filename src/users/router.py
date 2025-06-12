@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
 from typing import List
+from fastapi import Path
 
 from src.users.auth import AuthService
 from src.core.config import settings
@@ -119,33 +120,91 @@ async def update_user(
     return user
 
 
-@users_router.delete("/user/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@users_router.delete(
+    "/user/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete user account",
+    description="""
+    Delete user account and all associated data.
+    
+    This endpoint performs the following operations:
+    1. Verifies user permissions
+    2. Deletes all user's files from storage
+    3. Deletes all user's collections
+    4. Deletes all user's documents
+    5. Deletes the user account
+    
+    After successful deletion:
+    - All user's sessions are invalidated
+    - All user's files are removed from storage
+    - All user's collections and documents are deleted from database
+    - User account is permanently deleted
+    """,
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "User successfully deleted",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Not enough permissions to delete this user",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Not enough permissions"}
+                }
+            }
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "User not found",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "User not found"}
+                }
+            }
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Internal server error during user deletion",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error deleting user: <error message>"}
+                }
+            }
+        }
+    }
+)
 async def delete_user(
     auth_service: Annotated[AuthService, Depends()],
-    user_id: int,
+    user_id: Annotated[int, Path(title="The ID of the user to delete", description="ID of the user account to be deleted")],
     current_user: User = Depends(get_current_user),
 ):
     """
     Delete user and all associated data.
 
+    This endpoint:
+    1. Verifies user permissions
+    2. Deletes all user's files from storage
+    3. Deletes all user's collections
+    4. Deletes all user's documents
+    5. Deletes the user account
+
     - **user_id**: ID of the user to delete
     """
     if current_user.id != user_id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not enough permissions"
         )
 
     user = auth_service.get_user(user_data=user_id)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="User not found"
         )
 
-    # # Delete user's files and collections
-    # for file in user.files:
-    #     session.delete(file)
-    # for collection in user.collections:
-    #     session.delete(collection)
-
-    auth_service.delete_user(user)
-    return None
+    try:
+        auth_service.delete_user(user)
+        return None
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting user: {str(e)}"
+        )
