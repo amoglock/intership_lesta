@@ -9,15 +9,6 @@ class ErrorMessage(BaseModel):
     """
     detail: str
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "detail": "Error message...",
-                },
-            ]    
-        }
-    }
 
 
 class UploadFileResponse(BaseModel):
@@ -28,15 +19,8 @@ class UploadFileResponse(BaseModel):
     """
     filename: str
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "filename": "file.txt",
-                },
-            ]    
-        }
-    }
+    class Config:
+        from_attributes = True
 
 
 class DocumentInDB(UploadFileResponse):
@@ -47,16 +31,6 @@ class DocumentInDB(UploadFileResponse):
     """
     id: int
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {   
-                    "id": 1,
-                    "filename": "file.txt",
-                },
-            ]    
-        }
-    }
 
 class DocumentContent(DocumentInDB):
     """_summary_
@@ -65,15 +39,6 @@ class DocumentContent(DocumentInDB):
         BaseModel (_type_): _description_
     """
     content: str
-
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {   
-                    "id": 1,
-                    "filename": "file.txt",
-                    "content": "Some content the document..."
-                },
-            ]    
-        }
-    }    
+    
+    class Config:
+        from_attributes = True
