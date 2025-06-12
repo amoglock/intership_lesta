@@ -5,12 +5,17 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from src.collections.service import CollectionsService
 from src.collections.schemas import CollectionResponse, DocumentInCollection
+from src.documents.schemas import ErrorMessage
+from src.users.dependencies import get_current_user
+from src.users.schemas import UserResponse
 
 
 collections_router = APIRouter(
     prefix="/collections",
     tags=["Collections"],
+    dependencies=[Depends(get_current_user)],
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,51 +23,58 @@ logger = logging.getLogger(__name__)
     "/create",
     response_model=CollectionResponse,
     status_code=status.HTTP_201_CREATED,
-    description="""Create a new collection.
-
-                Returns:
-                    CollectionResponse: Created collection
-                """,
     summary="Create new collection",
+    description="Create a new collection",
 )
 async def create_collection(
-    service: Annotated[CollectionsService, Depends()],
-    collection_name: Annotated[str, Path(description="The name of new collection")],
-) -> CollectionResponse:
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    collection_service: Annotated[CollectionsService, Depends()],
+    collection_name: str,
+):
 
-    return await service.create_collection(collection_name)
+    return await collection_service.create_collection(
+        collection_name=collection_name,
+        user=current_user,
+    )
 
 
-@collections_router.get("/", response_model=List[CollectionResponse])
+@collections_router.get(
+    "/",
+    status_code=status.HTTP_200_OK,
+    response_model=List[CollectionResponse],
+    summary="Get collections list",
+    description="Returns only own collections with documents list",
+)
 async def collections(
-    service: Annotated[CollectionsService, Depends()],
-) -> List[CollectionResponse]:
-    """Get all collections with their documents.
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    collection_service: Annotated[CollectionsService, Depends()],
+):
 
-    Returns:
-        List[CollectionResponse]: List of all collections with their documents
-    """
-    return await service.collections()
+    return await collection_service.collections(user=current_user)
 
 
-@collections_router.get("/{collection_id}", response_model=List[DocumentInCollection])
+@collections_router.get(
+    "/{collection_id}",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorMessage,
+            "description": "The collection was not found",
+        },
+    },
+    response_model=List[DocumentInCollection],
+    summary="Get all documents in the collection",
+    description="Returns only documents linked with the collection",
+)
 async def collection_by_id(
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
     collection_id: Annotated[int, Path(title="The ID of the collection to get")],
-    service: Annotated[CollectionsService, Depends()],
-) -> List[DocumentInCollection]:
-    """Get all documents in a collection.
-
-    Args:
-        collection_id: ID of the collection to get documents from
-
-    Returns:
-        List[DocumentInCollection]: List of documents in the collection
-
-    Raises:
-        HTTPException: If collection doesn't exist
-    """
+    collection_service: Annotated[CollectionsService, Depends()],
+):
     try:
-        return await service.collection(collection_id)
+        return await collection_service.collection(
+            collection_id=collection_id, user=current_user
+        )
     except Exception as e:
         logger.error(f"Error getting collection: {str(e)}")
         raise HTTPException(
@@ -98,27 +110,34 @@ async def collection_statistics(
 
 
 @collections_router.post(
-    "/{collection_id}/{document_id}", status_code=status.HTTP_204_NO_CONTENT
+    "/{collection_id}/{document_id}",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorMessage,
+            "description": "The collection was not found",
+        },
+    },
+    summary="Add document to collection",
+    description="Add document only to own collection",
 )
 async def add_document(
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
     collection_id: Annotated[
         int, Path(title="The ID of the collection to add document to")
     ],
     document_id: Annotated[int, Path(title="The ID of the document to add")],
     service: Annotated[CollectionsService, Depends()],
-) -> None:
-    """Add a document to a collection.
-
-    Args:
-        collection_id: ID of the collection to add document to
-        document_id: ID of the document to add
-
-    Raises:
-        HTTPException: If collection or document doesn't exist
-    """
+):
     try:
-        await service.add_document_to_collection(collection_id, document_id)
+        await service.add_document_to_collection(
+            collection_id=collection_id,
+            document_id=document_id,
+            user=current_user,
+        )
+        return {"document": document_id, "collection": collection_id}
     except Exception as e:
+        # TODO Fix response if document already in collection
         logger.error(f"Error adding document to collection: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -127,26 +146,28 @@ async def add_document(
 
 
 @collections_router.delete(
-    "/{collection_id}/{document_id}", status_code=status.HTTP_204_NO_CONTENT
+    "/{collection_id}/{document_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Delete document from collection",
+    description="Delete only own collection",
 )
 async def delete_document(
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
     collection_id: Annotated[
         int, Path(title="The ID of the collection to remove document from")
     ],
     document_id: Annotated[int, Path(title="The ID of the document to remove")],
     service: Annotated[CollectionsService, Depends()],
-) -> None:
-    """Remove a document from a collection.
-
-    Args:
-        collection_id: ID of the collection to remove document from
-        document_id: ID of the document to remove
-
-    Raises:
-        HTTPException: If collection or document doesn't exist
-    """
+):
     try:
-        await service.delete_document(collection_id, document_id)
+        await service.delete_document(
+            collection_id=collection_id, document_id=document_id, user=current_user
+        )
+        return {
+            "document": document_id,
+            "collection": collection_id,
+            "status": "deleted",
+        }
     except Exception as e:
         logger.error(f"Error removing document from collection: {str(e)}")
         raise HTTPException(
