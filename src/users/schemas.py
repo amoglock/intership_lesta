@@ -29,7 +29,6 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: int
-    is_active: bool
 
     class Config:
         from_attributes = True
@@ -37,7 +36,6 @@ class UserResponse(UserBase):
 
 class User(BaseModel):
     username: str
-    is_active: bool | None = None
 
 
 class UserInDB(User):
