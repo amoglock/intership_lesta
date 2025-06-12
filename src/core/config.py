@@ -23,7 +23,6 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["*"]
 
     # Paths
-    STATIC_DIR: str = "src/frontend/static"
     DATA_DIR: str = "data"
     UPLOAD_DIR: Path = Path(DATA_DIR) / "files"
 
