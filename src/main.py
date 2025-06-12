@@ -2,10 +2,8 @@ import logging
 import uvicorn
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from src.core.config import settings
 from src.database import create_db_and_tables
@@ -17,10 +15,10 @@ from src.users.router import users_router
 
 # Logging setup
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,15 +31,15 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize database: {e}")
         raise
     yield
-    # Cleanup at shutdown
     logger.info("Application shutting down")
+
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="API for text analysis using TF-IDF algorithm",
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
@@ -54,9 +52,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files
-app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
-
 # Connect routers
 app.include_router(documents_router)
 app.include_router(collections_router)
@@ -65,5 +60,6 @@ app.include_router(metrics_router)
 app.include_router(users_router)
 
 if __name__ == "__main__":
-    uvicorn.run("src.main:app", host=settings.APP_HOST, port=settings.APP_PORT, reload=True)
-    
+    uvicorn.run(
+        "src.main:app", host=settings.APP_HOST, port=settings.APP_PORT, reload=True
+    )
