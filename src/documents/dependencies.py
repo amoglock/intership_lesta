@@ -1,3 +1,4 @@
+import logging
 import os
 from fastapi import UploadFile
 
@@ -7,6 +8,8 @@ from src.documents.exceptions import (
     FileSizeValidationError,
     FileTypeValidationError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def file_validation(file: UploadFile) -> UploadFile:
@@ -27,12 +30,15 @@ async def file_validation(file: UploadFile) -> UploadFile:
     ext = os.path.splitext(file.filename)[1].lower()
 
     if ext not in settings.ALLOWED_EXTENSIONS:
+        logger.info("Fail validate. File not in ALLOWED_EXTENSIONS")
         raise FileExtensionValidationError()
 
     if file.size > settings.MAX_FILE_SIZE:
+        logger.info("Fail validate. File is too large size")
         raise FileSizeValidationError()
 
     if file.content_type not in settings.ALLOWED_FILE_TYPES:
+        logger.info("Fail validate. File not in ALLOWED_FILE_TYPES")
         raise FileTypeValidationError()
 
     return file
