@@ -2,9 +2,8 @@ import logging
 import uvicorn
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.core.config import settings
@@ -33,7 +32,6 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize database: {e}")
         raise
     yield
-    # Cleanup at shutdown
     logger.info("Application shutting down")
 
 app = FastAPI(
