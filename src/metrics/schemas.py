@@ -1,72 +1,46 @@
+from datetime import datetime
+from typing import Optional
+
 from pydantic import BaseModel
 
 from src.core.config import settings
 
 
 class StatusResponse(BaseModel):
-    """Response model for the `/status` endpoint.
-
-    Indicates the current operational state of the service.
-
-    Attributes:
-        status: A string representing the service status. Defaults to "OK".
-               Possible values:
-               - "OK": Service is operational
+    """Response model for service status endpoint.
+    
+    This model represents the current status of the service.
     """
-    status: str = "OK"
-
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "status": "OK",
-                },
-            ]    
-        }
-    }
+    status: str = "ok"
 
 
 class VersionResponse(BaseModel):
-    """Response model for the `/version` endpoint.
-
-    Contains the current application version, fetched from settings.
-
-    Attributes:
-        version (str): The current version of the application (e.g., "v1.2.3").
-                      Automatically populated from `settings.APP_VERSION`.
+    """Response model for application version endpoint.
+    
+    This model contains information about the current version of the application.
     """
     version: str = settings.APP_VERSION
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "version": "v0.1.0",
-                }
-            ]
-        }
-    }
-
 
 class MetricsResponse(BaseModel):
-    """"""
+    """Response model for processing metrics endpoint.
+    
+    This model contains aggregated statistics about document processing operations.
+    
+    Attributes:
+        files_processed (int): Total number of successfully processed files
+        min_time_processed (float): Minimum processing time in seconds
+        avg_time_processed (float): Average processing time in seconds
+        max_time_processed (float): Maximum processing time in seconds
+        latest_file_processed_timestamp (float | None): Processing time of the last file in seconds, or None if no files processed
+        max_content_length (int): Maximum content length in characters across all processed files
+        avg_content_length (float): Average content length in characters across all processed files
+    """
     files_processed: int
     min_time_processed: float
     avg_time_processed: float
     max_time_processed: float
     latest_file_processed_timestamp: float | None
-
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "files_processed": 1,
-                    "min_time_processed": 0.123,
-                    "avg_time_processed": 0.123,
-                    "max_time_processed": 0.123,
-                    "latest_file_processed_timestamp": 0.123,
-                }    
-            ]
-        }
-    }
+    max_content_length: int
+    avg_content_length: float
         
