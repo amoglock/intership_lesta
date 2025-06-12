@@ -12,52 +12,62 @@ logger = logging.getLogger(__name__)
 
 metrics_router = APIRouter(
     tags=["Metrics"],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Internal server error occurred",
+        },
+    },
 )
 
 
 @metrics_router.get(
-        "/status", 
-        summary="Status endpoint for monitoring",
-        response_description="Returns 'OK' if service is available",
-        response_model=StatusResponse,
-        )
+    "/status",
+    summary="Get service status",
+    description="Check if the service is available and responding",
+    response_model=StatusResponse,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Service is available and responding",
+            "model": StatusResponse,
+        },
+    },
+)
 async def get_status():
-    """Status endpoint for monitoring."""
     return StatusResponse
 
 
 @metrics_router.get(
-        "/version", 
-        summary="App version endpoint",
-        response_description="Returns current app version",
-        response_model=VersionResponse,
-        )
+    "/version",
+    summary="Get application version",
+    description="Returns the current version of the application",
+    response_model=VersionResponse,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Current application version",
+            "model": VersionResponse,
+        },
+    },
+)
 async def get_version():
-    """Version endpoint for monitoring"""
     return VersionResponse
 
 
 @metrics_router.get(
-        "/metrics",
-        tags=["Monitoring"],
-        summary="Get processing metrics",
-        response_description="Returns processing metrics",
-        response_model=MetricsResponse
-        )
+    "/metrics",
+    summary="Get processing metrics",
+    description="Returns aggregated statistics about document processing, including processing times and file content lenght",
+    response_model=MetricsResponse,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Processing metrics retrieved successfully",
+            "model": MetricsResponse,
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Failed to retrieve processing metrics",
+        },
+    },
+)
 async def get_metrics(repository: Annotated[MetricsRepository, Depends()]):
-    """Get processing metrics
-    
-    Returns:
-        MetricsResponse: Processing metrics including:
-            - files_processed: total number of processed files
-            - min_time_processed: minimum processing time
-            - avg_time_processed: average processing time
-            - max_time_processed: maximum processing time
-            - latest_file_processed_timestamp: processing time of the last file
-            
-    Raises:
-        HTTPException: If there is an error while fetching metrics
-    """
     try:
         metrics = await repository.get_metrics()
         return MetricsResponse(**metrics)
