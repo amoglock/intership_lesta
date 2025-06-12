@@ -1,18 +1,18 @@
 import logging
-from contextlib import asynccontextmanager
 import uvicorn
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
-from fastapi.exceptions import RequestValidationError
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.api.router import api_router
 from src.core.config import settings
 from src.database import create_db_and_tables
-from src.middleware.middleware import FileValidationMiddleware
-from src.tf_idf.router import router as tf_idf_router
+from src.documents.router import documents_router
+from src.collections.router import collections_router
+from src.frontend.router import frontend_router
+from src.metrics.router import metrics_router
+from src.users.router import users_router
 
 # Logging setup
 logging.basicConfig(
@@ -32,7 +32,6 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize database: {e}")
         raise
     yield
-    # Cleanup at shutdown
     logger.info("Application shutting down")
 
 app = FastAPI(
@@ -43,7 +42,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.add_middleware(FileValidationMiddleware)
 
 # CORS setup
 app.add_middleware(
@@ -54,31 +52,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
-# Error handlers
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation error: {exc}")
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()}
-    )
-
-@app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unexpected error: {exc}")
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Internal server error"}
-    )
-
 # Mount static files
 app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 
 # Connect routers
-app.include_router(tf_idf_router, tags=["tf-idf"])
-app.include_router(api_router)
+app.include_router(documents_router)
+app.include_router(collections_router)
+app.include_router(frontend_router)
+app.include_router(metrics_router)
+app.include_router(users_router)
 
 if __name__ == "__main__":
     uvicorn.run("src.main:app", host=settings.APP_HOST, port=settings.APP_PORT, reload=True)
