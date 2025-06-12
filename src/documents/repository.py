@@ -1,4 +1,5 @@
 import logging
+from typing import List
 from sqlmodel import Session, select
 from src.database import engine
 from src.models import Collection, Document
@@ -17,8 +18,6 @@ class DocumentsRepository:
         """
         try:
             with Session(self.engine) as session:
-                collection = session.exec(select(Collection)).first()
-                uploaded_file.collections = [collection]
                 session.add(uploaded_file)
                 session.commit()
 
@@ -35,20 +34,31 @@ class DocumentsRepository:
             session.commit()
             self.logger.info(f"{document.filename} was deleted")
 
-    async def get_one_or_all_documents(self, document_id: int | None = None) -> list[Document]:
-        """_summary_"""
+    async def get_one_or_all_documents(
+        self, user_id: int, document_id: int | None = None
+    ) -> Document | List[Document]:
+        """Get documents for current user.
 
-        try:
-            with Session(self.engine) as session:
-                if document_id:
-                    statement = select(Document).where(Document.id == 0)
-                    document = session.exec(statement).one()
-                    return document
+        Args:
+            user_id (int): current active user id
+            document_id (int | None, optional): the ID of a specific document. Defaults to None
 
-                statement = select(Document)
-                documents = session.exec(statement).all()
-                return documents
+        Returns:
+            list[Document]: if document_id not set (None)
+            Document: specific document with current document_id
+        """
 
-        except Exception as e:
-            self.logger.error(f"Error get list or one of document: {e}")
-            raise
+        with Session(self.engine) as session:
+            if document_id:
+                statement = (
+                    select(Document)
+                    .where(Document.id == document_id)
+                    .where(Document.owner_id == user_id)
+                )
+                document = session.exec(statement).one()
+                return document
+
+            statement = select(Document).where(Document.owner_id == user_id)
+            documents = session.exec(statement).all()
+            return documents
+
