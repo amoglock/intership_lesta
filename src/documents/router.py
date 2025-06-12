@@ -13,6 +13,7 @@ from fastapi import (
 from sqlalchemy.exc import NoResultFound
 
 from src.documents.dependencies import file_validation
+from src.documents.huffman import huffman_encode, run_encode
 from src.documents.schemas import (
     DocumentContent,
     DocumentInDB,
@@ -199,7 +200,7 @@ async def document_statistics(
             document_id=document_id,
             user=current_user,
         )
-    except (NoResultFound) as e:
+    except NoResultFound as e:
         logger.error(f"Document not found. ID: {document_id}, Error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -244,3 +245,15 @@ async def delete_document(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
+
+
+@documents_router.get("/{document_id}/huffman")
+async def huffman(
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    document_id: Annotated[int, Path(title="The ID of the document to Huffman code")],
+    file_service: Annotated[DocumentsService, Depends()],
+):
+    document = await file_service.get_document_with_content(
+        document_id=document_id, user=current_user
+    )
+    return await run_encode(text=document.content)
