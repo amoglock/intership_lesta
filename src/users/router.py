@@ -34,6 +34,7 @@ async def register_user(
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     auth_service: Annotated[AuthService, Depends()],
+    response: Response,
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests.
@@ -48,16 +49,45 @@ async def login(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return auth_service.create_user_token(user)
+    token = auth_service.create_user_token(user)
+    
+    # Set token in cookie
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token['access_token']}",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+    
+    return token
 
 
-@users_router.get("/logout")
-async def logout(response: Response):
+@users_router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(
+    response: Response,
+    current_user: Annotated[UserResponse, Depends(get_current_user)]
+):
     """
-    Logout user by clearing authentication cookies.
+    Logout user by clearing authentication cookies and invalidating token.
+    
+    This endpoint:
+    1. Clears the access token cookie
+    2. Returns a success message
     """
-    response.delete_cookie(key="access_token")
-    return {"message": "Successfully logged out"}
+    # Clear the cookie
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        secure=True,
+        samesite="lax"
+    )
+    
+    return {
+        "message": "Successfully logged out",
+        "user": current_user.username
+    }
 
 
 @users_router.patch("/user/{user_id}", response_model=UserResponse)
