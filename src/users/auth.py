@@ -26,12 +26,6 @@ class AuthService:
 
     def get_password_hash(self, password: str) -> str:
         return self.pwd_context.hash(password)
-
-
-    # def get_user(self, db, username: str):
-    #     if username in db:
-    #         user_dict = db[username]
-    #         return UserInDB(**user_dict)
         
     def get_user(self, user_data: int | str) -> User | None:
         if isinstance(user_data, int):
