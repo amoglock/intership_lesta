@@ -1,7 +1,10 @@
 from datetime import datetime, UTC
 from typing import List, Optional
 
+from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import SQLModel, Field, Relationship
+
+from src.tf_idf.schemas import WordStatistics
 
 
 class User(SQLModel, table=True):
@@ -61,13 +64,10 @@ class Document(SQLModel, table=True):
     filename: str = Field(nullable=False)
     unique_filename: str = Field(nullable=False, unique=True)
     file_path: str = Field(nullable=False)
-    content: str = Field(nullable=True)
+    content: List[WordStatistics] = Field(nullable=True, sa_type=JSON)
     content_length: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     owner_id: int = Field(foreign_key="users.id")
-
-    # Statistics fields
-    tf_vector: Optional[str] = Field(default=None)  # JSON string with term frequencies
 
     # Relationships
     collections: List["Collection"] = Relationship(
@@ -101,13 +101,6 @@ class Collection(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     owner_id: int = Field(foreign_key="users.id")
-
-    # Statistics fields
-    idf_vector: Optional[str] = Field(default=None)  # JSON string with IDF values
-    total_documents: Optional[int] = Field(default=None)
-    total_words: Optional[int] = Field(default=None)
-    vocabulary: Optional[str] = Field(default=None)  # JSON string with all unique words
-    stats_updated_at: Optional[datetime] = Field(default=None)
 
     # Relationships
     documents: List["Document"] = Relationship(
