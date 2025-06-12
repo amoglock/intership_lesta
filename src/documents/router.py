@@ -20,6 +20,7 @@ from src.documents.schemas import (
     UploadFileResponse,
 )
 from src.documents.service import DocumentsService
+from src.tf_idf.schemas import DocumentStatistics
 from src.users.dependencies import get_current_user
 from src.users.schemas import UserResponse
 
@@ -33,7 +34,10 @@ documents_router = APIRouter(
             "model": ErrorMessage,
             "description": "Not authenticated",
         },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorMessage},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "model": ErrorMessage,
+            "description": "Internal server error occurred",
+        },
     },
 )
 
@@ -45,7 +49,13 @@ logger = logging.getLogger(__name__)
     response_model=List[DocumentInDB],
     status_code=status.HTTP_200_OK,
     summary="Get all user documents",
-    description="Return list of all users documents",
+    description="Returns a list of all documents owned by the authenticated user",
+    responses={
+        status.HTTP_200_OK: {
+            "description": "List of user's documents",
+            "model": List[DocumentInDB],
+        },
+    },
 )
 async def documents(
     current_user: Annotated[UserResponse, Depends(get_current_user)],
@@ -62,7 +72,17 @@ async def documents(
     response_model=UploadFileResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Upload a new file",
-    description="Check and upload file. Save new document to database",
+    description="Uploads a file, validates it, and saves it to the database",
+    responses={
+        status.HTTP_201_CREATED: {
+            "description": "File successfully uploaded and saved",
+            "model": UploadFileResponse,
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Failed to save file to storage or database",
+            "model": ErrorMessage,
+        },
+    },
 )
 async def upload_file(
     current_user: Annotated[UserResponse, Depends(get_current_user)],
@@ -93,7 +113,9 @@ async def upload_file(
             else "Error uploading file"
         )
         if uploaded_file_data:
-            await file_service.delete_file_from_store(uploaded_file_data.file_path)
+            await file_service.delete_file_from_store(
+                file_path=uploaded_file_data.file_path
+            )
 
         logger.error(
             f"{error_message}: {str(e)}. User: {current_user.username}, "
@@ -106,15 +128,20 @@ async def upload_file(
 
 @documents_router.get(
     "/{document_id}",
+    response_model=DocumentContent,
+    status_code=status.HTTP_200_OK,
+    summary="Get document content",
+    description="Returns the content of a specific document",
     responses={
+        status.HTTP_200_OK: {
+            "description": "Document content retrieved successfully",
+            "model": DocumentContent,
+        },
         status.HTTP_404_NOT_FOUND: {
+            "description": "The document was not found",
             "model": ErrorMessage,
-            "description": "The file was not found",
         },
     },
-    response_model=DocumentContent,
-    summary="Document by id",
-    description="Return file content",
 )
 async def document_by_id(
     current_user: Annotated[UserResponse, Depends(get_current_user)],
@@ -143,8 +170,19 @@ async def document_by_id(
 @documents_router.get(
     "/{document_id}/statistics",
     status_code=status.HTTP_200_OK,
+    response_model=DocumentStatistics,
     summary="Get document statistics",
-    description="Get statistics for this document (including the collection)",
+    description="Returns TF-IDF statistics for the document within its collection",
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Document statistics retrieved successfully",
+            "model": DocumentStatistics,
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "The document was not found",
+            "model": ErrorMessage,
+        },
+    },
 )
 async def document_statistics(
     current_user: Annotated[UserResponse, Depends(get_current_user)],
@@ -155,24 +193,39 @@ async def document_statistics(
     logger.info(
         f"Fetching statistics for document {document_id} in collection {collection_id}"
     )
-    return await file_service.get_document_statistics(
-        collection_id=collection_id,
-        document_id=document_id,
-        user=current_user,
-    )
+    try:
+        return await file_service.get_document_statistics(
+            collection_id=collection_id,
+            document_id=document_id,
+            user=current_user,
+        )
+    except (NoResultFound) as e:
+        logger.error(f"Document not found. ID: {document_id}, Error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
 
 
 @documents_router.delete(
     "/{document_id}",
     status_code=status.HTTP_200_OK,
+    summary="Delete document",
+    description="Deletes a document owned by the authenticated user",
     responses={
+        status.HTTP_200_OK: {
+            "description": "Document successfully deleted",
+            "content": {
+                "application/json": {
+                    "example": {"document_id": 123, "status": "deleted"}
+                }
+            },
+        },
         status.HTTP_404_NOT_FOUND: {
+            "description": "The document was not found",
             "model": ErrorMessage,
-            "description": "The file was not found",
         },
     },
-    summary="Delete document",
-    description="Can delete only own documents",
 )
 async def delete_document(
     current_user: Annotated[UserResponse, Depends(get_current_user)],
