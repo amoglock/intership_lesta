@@ -33,5 +33,5 @@ def huffman_encode(s):
 async def run_encode(text: str):
     code = huffman_encode(text)
     encoded = "".join(code[ch] for ch in text)
-    return encoded
+    return {"huffman_code": encoded}
 
