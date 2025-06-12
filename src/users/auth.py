@@ -5,10 +5,10 @@ from passlib.context import CryptContext
 from fastapi import HTTPException, status
 
 from src.core.config import settings
+from src.models import User
 from src.users.repository import UsersRepository
 from src.users.schemas import UserCreate
-from src.models import User
-from .dependencies import create_access_token
+from src.users.dependencies import create_access_token
 
 
 
