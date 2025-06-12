@@ -32,14 +32,14 @@ class CollectionsRepository:
             session.add(collection)
             session.commit()
 
-    async def create_collection(self, collection_name: str) -> Collection:
+    async def create_collection(self, collection_name: str, user_id: int) -> Collection:
         """Create a new collection.
 
         Returns:
             Collection: Created collection
         """
         with Session(self.engine) as session:
-            collection = Collection(name=collection_name)
+            collection = Collection(name=collection_name, owner_id=user_id)
             session.add(collection)
             session.commit()
             session.refresh(collection)
@@ -60,7 +60,9 @@ class CollectionsRepository:
             session.add(collection)
             session.commit()
 
-    async def get_collection_by_id(self, collection_id: int) -> Collection:
+    async def get_collection_by_id(
+        self, collection_id: int, user_id: int
+    ) -> Collection:
         """Get a collection by its ID.
 
         Args:
@@ -76,18 +78,23 @@ class CollectionsRepository:
             template = (
                 select(Collection)
                 .where(Collection.id == collection_id)
+                .where(Collection.owner_id == user_id)
                 .options(selectinload(Collection.documents))
             )
             collection = session.exec(template).one()
         return collection
 
-    async def get_all_collections(self) -> List[CollectionResponse]:
+    async def get_all_collections(self, user_id: int) -> List[CollectionResponse]:
         """Get all collections with their documents.
 
         Returns:
             list[CollectionResponse]: List of all collections with their documents
         """
         with Session(self.engine) as session:
-            template = select(Collection).options(selectinload(Collection.documents))
+            template = (
+                select(Collection)
+                .where(Collection.owner_id == user_id)
+                .options(selectinload(Collection.documents))
+            )
             collections = session.exec(template).all()
             return collections
