@@ -12,15 +12,13 @@ class User(SQLModel, table=True):
         username: Unique username
         hashed_password: Hashed password
         created_at: Timestamp when user was created
-        is_active: Whether the user is active
     """
     __tablename__ = "users"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)
     hashed_password: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     
     # Relationships
     collections: list["Collection"] = Relationship(back_populates="owner")
@@ -50,9 +48,12 @@ class Document(SQLModel, table=True):
         filename: Original filename
         unique_filename: Unique filename with timestamp
         file_path: Path to stored file
+        content: Document text content
         created_at: Timestamp when document was created
         reference_count: Number of collections referencing this document
-        collections: List of collections containing this document
+        
+        # Statistics
+        tf_vector: JSON string with Term Frequency vector
     """
     __tablename__ = "documents"
 
@@ -60,9 +61,13 @@ class Document(SQLModel, table=True):
     filename: str = Field(nullable=False)
     unique_filename: str = Field(nullable=False, unique=True)
     file_path: str = Field(nullable=False)
+    content: str = Field(nullable=True)
+    content_length: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    reference_count: int = Field(default=1)
     owner_id: int = Field(foreign_key="users.id")
+
+    # Statistics fields
+    tf_vector: Optional[str] = Field(default=None)  # JSON string with term frequencies
 
     # Relationships
     collections: List["Collection"] = Relationship(
@@ -80,7 +85,13 @@ class Collection(SQLModel, table=True):
         description: Optional collection description
         created_at: Timestamp when collection was created
         updated_at: Timestamp when collection was last updated
-        documents: List of documents in this collection
+        
+        # Statistics
+        idf_vector: JSON string with Inverse Document Frequency vector
+        total_documents: Number of documents in collection
+        total_words: Total number of words in collection
+        vocabulary: JSON string with all unique words in collection
+        stats_updated_at: When statistics were last updated
     """
     __tablename__ = "collections"
 
@@ -91,8 +102,15 @@ class Collection(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     owner_id: int = Field(foreign_key="users.id")
 
+    # Statistics fields
+    idf_vector: Optional[str] = Field(default=None)  # JSON string with IDF values
+    total_documents: Optional[int] = Field(default=None)
+    total_words: Optional[int] = Field(default=None)
+    vocabulary: Optional[str] = Field(default=None)  # JSON string with all unique words
+    stats_updated_at: Optional[datetime] = Field(default=None)
+
     # Relationships
-    documents: List[Document] = Relationship(
+    documents: List["Document"] = Relationship(
         back_populates="collections", link_model=CollectionDocumentLink
     )
     owner: "User" = Relationship(back_populates="collections")
